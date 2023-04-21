@@ -39,25 +39,19 @@ void FeatureMatcher::extractFeatures()
     // it into feats_colors_[i] vector
     /////////////////////////////////////////////////////////////////////////////////////////
     cv::Ptr<cv::ORB> orb = cv::ORB::create();
-    cv::Ptr<cv::SIFT> sift = cv::SIFT::create();
     std::vector<cv::KeyPoint> keypoints;
     cv::Mat descriptors;
     cv::Mat mask = cv::Mat::ones(img.rows, img.cols, CV_8UC1);
 
-    sift->detectAndCompute(img, mask, keypoints, descriptors);
+    cv::Mat img_gray;
+    cv::cvtColor(img, img_gray, cv::COLOR_BGR2GRAY);
+    orb->detectAndCompute(img_gray, mask, keypoints, descriptors);
 
     features_[i] = keypoints;
     descriptors_[i] = descriptors;
 
-    for(int j = 0; j < keypoints.size(); j++) {
-        int x = (int)keypoints[j].pt.x;
-        int y = (int)keypoints[j].pt.y;
-        if(x >= img.cols)
-            x = img.cols - 1;
-        if(y >= img.rows)
-            y = img.rows - 1;
-        feats_colors_[i].push_back(img.at<cv::Vec3b>(y,x));
-    }
+    for(int j = 0; j < keypoints.size(); j++)
+        feats_colors_[i].push_back(img.at<cv::Vec3b>((int)keypoints[j].pt.y,(int)keypoints[j].pt.x));
     /////////////////////////////////////////////////////////////////////////////////////////
   }
 }
@@ -87,56 +81,48 @@ void FeatureMatcher::exhaustiveMatching()
       /////////////////////////////////////////////////////////////////////////////////////////
 
       cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
-
-      /* Perform ratio test
-      std::vector<cv::DMatch> raw_matches;
-      matcher->match(descriptors_[i], descriptors_[j], raw_matches);
-
-      double ratio = 0.1;
-      double min_distance = raw_matches[0].distance;
-
-      for (int k = 1; k < raw_matches.size(); k++)
-        if (raw_matches[k].distance < min_distance)
-            min_distance = raw_matches[k].distance;
-
-      for (int k = 0; k < raw_matches.size(); k++)
-        if (raw_matches[j].distance < ratio * min_distance)
-            matches.push_back(raw_matches[j]);
-      */
       matcher->match(descriptors_[i], descriptors_[j], matches);
 
       std::vector<cv::Point2f> p_i, p_j;
-      for(int r = 0; r < matches.size(); r++) {
-          p_i.push_back(features_[i][matches[r].trainIdx].pt);
-          p_j.push_back(features_[j][matches[r].queryIdx].pt);
+
+      for(auto & match : matches) {
+          p_i.push_back(features_[i][match.trainIdx].pt);
+          p_j.push_back(features_[j][match.queryIdx].pt);
       }
 
       double threshold = 1.0;
       double prob = 0.999;
       cv::Mat essential_mask, homography_mask;
-      int n_ess_inliers = 0, n_hom_inliers = 0;
-      std::vector<cv::DMatch> essential_inliers, homography_inliers;
+
       cv::Mat E = cv::findEssentialMat(p_i, p_j, new_intrinsics_matrix_, cv::RANSAC, prob, threshold, essential_mask);
       cv::Mat H = cv::findHomography(p_i, p_j, cv::RANSAC, threshold, homography_mask);
 
       for(int k = 0; k < essential_mask.rows; k++)
-          if (essential_mask.at<unsigned char>(k) == 1) {
-              essential_inliers.push_back(matches[k]);
-              n_ess_inliers++;
-          }
+          if(essential_mask.at<unsigned char>(k) == 1)
+              inlier_matches.push_back(matches[k]);
       for(int k = 0; k < homography_mask.rows; k++)
-          if(homography_mask.at<unsigned char>(k) == 1) {
-              homography_inliers.push_back(matches[k]);
-              n_hom_inliers++;
-          }
+            if(homography_mask.at<unsigned char>(k) == 1)
+                inlier_matches.push_back(matches[k]);
+
+      /*
+      int n_ess_inliers = cv::countNonZero(essential_mask);
+      int n_hom_inliers = cv::countNonZero(homography_mask);
+
+      if(n_ess_inliers > n_hom_inliers) {
+          for(int k = 0; k < essential_mask.rows; k++)
+              if(essential_mask.at<unsigned char>(k) == 1)
+                  inlier_matches.push_back(matches[k]);
+      }
+      else {
+          for(int p = 0; p < homography_mask.rows; p++)
+              if(homography_mask.at<unsigned char>(p) == 1)
+                  inlier_matches.push_back(matches[p]);
+      }
+      */
 
       int min_inliers = 5;
-
-      if(n_ess_inliers > n_hom_inliers && n_ess_inliers > min_inliers)
-          setMatches( i, j, essential_inliers);
-      else if(n_hom_inliers > min_inliers)
-          setMatches( i, j, homography_inliers);
-
+      if(inlier_matches.size() > min_inliers)
+          setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
     }
   }
