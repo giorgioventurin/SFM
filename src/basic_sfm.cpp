@@ -16,7 +16,7 @@ struct ReprojectionError
   //////////////////////////// Code to be completed (5/6) //////////////////////////////////
   // This class should include an auto-differentiable cost function (see Ceres Solver docs).
   // Remember that we are dealing with a normalized, canonical camera:
-  // point projection is easy! To rotete a point given an axis-angle rotation, use
+  // point projection is easy! To rotate a point given an axis-angle rotation, use
   // the Ceres function:
   // AngleAxisRotatePoint(...) (see ceres/rotation.h)
   // WARNING: When dealing with the AutoDiffCostFunction template parameters,
@@ -501,14 +501,29 @@ void BasicSfM::solve()
     // Store the transformation into init_r_mat and  init_t_vec; defined above and set the seed_found flag to true
     // Otherwise, test a different [ref_cam_pose_idx, new_cam_pose_idx] pair (while( !seed_found ) loop)
     // The dummy condition here:
-    if( true ) seed_found = true;
+    // if( true ) seed_found = true;
     // should be replaced with the criteria described above
     /////////////////////////////////////////////////////////////////////////////////////////
+    double prob = 0.999;
+    double threshold = 0.001;
 
+    cv::Mat E = cv::findEssentialMat(points0, points1, intrinsics_matrix, cv::RANSAC, prob, threshold, inlier_mask_E);
+    cv::Mat H = cv::findHomography(points0, points1, inlier_mask_H, cv::RANSAC, threshold);
 
+    int essential_inliers = cv::countNonZero(inlier_mask_E);
+    int homography_inliers = cv::countNonZero(inlier_mask_H);
 
+    if(essential_inliers > homography_inliers)
+        cv::recoverPose(E, points0, points1, intrinsics_matrix, init_r_mat, init_t_vec, inlier_mask_E);
+    else
+        continue;
 
+    // Sidewards motion test
+    double x_t = std::abs(init_t_vec.at<double>(0));
+    double z_t = std::abs(init_t_vec.at<double>(2));
 
+    if(x_t > z_t)
+        seed_found = true;
     /////////////////////////////////////////////////////////////////////////////////////////
   }
 

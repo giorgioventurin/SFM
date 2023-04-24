@@ -76,7 +76,7 @@ void FeatureMatcher::exhaustiveMatching()
       cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
       matcher->match(descriptors_[i], descriptors_[j], matches);
 
-      std::vector<cv::Point2f> p_i, p_j;
+      std::vector<cv::Point2d> p_i, p_j;
 
       for(auto & match : matches) {
           p_i.push_back(features_[i][match.queryIdx].pt);
