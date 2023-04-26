@@ -700,11 +700,28 @@ void BasicSfM::solve()
             // pt[1] = /*X coordinate of the estimated point */;
             // pt[2] = /*X coordinate of the estimated point */;
             /////////////////////////////////////////////////////////////////////////////////////////
+            points0.emplace_back(observations_[2*co_iter.second],observations_[2*co_iter.second + 1]);
+            points1.emplace_back(observations_[2*cam_observation[new_cam_pose_idx][co_iter.first]],
+                                 observations_[2*cam_observation[new_cam_pose_idx][co_iter.first] + 1]);
 
+            init_r_mat.copyTo(proj_mat0(cv::Rect(0,0,3,3)));
+            init_t_vec.copyTo(proj_mat0(cv::Rect(3,0,1,3)));
 
+            initCamParams(cam_idx,init_r_mat,init_t_vec);
+            init_r_mat.copyTo(proj_mat1(cv::Rect(0,0,3,3)));
+            init_t_vec.copyTo(proj_mat1(cv::Rect(3,0,1,3)));
 
+            cv::triangulatePoints(proj_mat0,proj_mat1,points0,points1,hpoints4D);
 
-
+            if(checkCheiralityConstraint(cam_idx,pt_idx) && checkCheiralityConstraint(new_cam_pose_idx,pt_idx)){
+                n_new_pts++;
+                pts_optim_iter_[pt_idx] = 1;
+                double *pt = pointBlockPtr(pt_idx);
+                pt[0]= hpoints4D.at<double>(0,n_new_pts)/hpoints4D.at<double>(3,n_new_pts);
+                pt[1]= hpoints4D.at<double>(1,n_new_pts)/hpoints4D.at<double>(3,n_new_pts);
+                pt[2]= hpoints4D.at<double>(2,n_new_pts)/hpoints4D.at<double>(3,n_new_pts);
+            }
+            
             /////////////////////////////////////////////////////////////////////////////////////////
           }
         }
