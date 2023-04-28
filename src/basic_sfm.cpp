@@ -8,6 +8,7 @@
 
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
+#include <ceres/loss_function.h>
 
 using namespace std;
 
@@ -23,11 +24,40 @@ struct ReprojectionError
   // pay attention to the order of the template parameters
   //////////////////////////////////////////////////////////////////////////////////////////
   
+  ReprojectionError(double observed_x, double observed_y) : observed_x(observed_x), observed_y(observed_y) {}
+
+  template <typename T>
+  bool operator()(const T* const camera, const T* const point, T* residuals) const {
+    // camera[0,1,2] represent angle-axis rotation, camera[3,4,5] the translation.
+    // Initialize 3D point
+    T p[3];
+
+    // Perform rotation
+    ceres::AngleAxisRotatePoint(camera, point, p);
+
+    // Perform translation
+    p[0] += camera[3];
+    p[1] += camera[4];
+    p[2] += camera[5];
+
+    // Compute predictions
+    T predicted_x = p[0] / p[2];
+    T predicted_y = p[1] / p[2];
+
+    // Compute the error as the difference between predicted and observed position
+    residuals[0] = predicted_x - observed_x;
+    residuals[1] = predicted_y - observed_y;
+
+    return true;
+  }
+
+  // Just for "encapsulation"
+  static ceres::CostFunction* Create(const double observed_x, const double observed_y) {
+    return (new ceres::AutoDiffCostFunction<ReprojectionError, 2, 6, 3>(new ReprojectionError(observed_x, observed_y)));
+  }
   
-  
-  
-  
-  
+  double observed_x;
+  double observed_y;
   
   //////////////////////////////////////////////////////////////////////////////////////////
 };
@@ -818,19 +848,27 @@ void BasicSfM::bundleAdjustmentIter( int new_cam_idx )
         // The camera position blocks have size (camera_block_size_) of 6 elements,
         // while the point position blocks have size (point_block_size_) of 3 elements.
         //////////////////////////////////////////////////////////////////////////////////
+        
+        ceres::CostFunction* cost_function = ReprojectionError::Create(
+          observations_[2 * i_obs],
+          observations_[2 * i_obs + 1]
+        );
 
-
-
-
+        problem.AddResidualBlock(
+          cost_function,
+          new ceres::CauchyLoss(2 * max_reproj_err_),
+          cameraBlockPtr(cam_pose_index_[i_obs]),
+          pointBlockPtr(point_index_[i_obs])
+        );
 
         /////////////////////////////////////////////////////////////////////////////////////////
       }
     }
 
-    Solve(options, &problem, &summary);
+    ceres::Solve(options, &problem, &summary);
 
     // WARNING Here poor optimization ... :(
-    // CHeck the cheirality constraint
+    // Check the cheirality constraint
     int n_cheirality_violation = 0;
     for( int i_obs = 0; i_obs < num_observations_; i_obs++ )
     {
