@@ -730,33 +730,48 @@ void BasicSfM::solve()
             // pt[1] = /*X coordinate of the estimated point */;
             // pt[2] = /*X coordinate of the estimated point */;
             /////////////////////////////////////////////////////////////////////////////////////////
-            points0.emplace_back(observations_[2*co_iter.second],observations_[2*co_iter.second + 1]);
-            points1.emplace_back(observations_[2*cam_observation[new_cam_pose_idx][co_iter.first]],
-                                 observations_[2*cam_observation[new_cam_pose_idx][co_iter.first] + 1]);
 
-            cv::Mat r_vec0;
-            cv::Mat_<double> init_r_mat0 = (cv::Mat_<double>(3,1) << cam0_data[0],cam0_data[1],cam0_data[2]);
-            cv::Rodrigues(init_r_mat0,r_vec0);
+            cv::Mat rot_vec, rot_mat, trans_vec;
 
-            cv::Mat r_vec1;
-            cv::Mat_<double> init_r_mat1 = (cv::Mat_<double>(3,1) << cam1_data[0],cam1_data[1],cam1_data[2]);
-            cv::Rodrigues(init_r_mat1,r_vec1);
+            // Collect rotation and translation vector from camera 0
+            rot_vec = (cv::Mat_<double>(3,1) << cam0_data[0],cam0_data[1],cam0_data[2]);
+            trans_vec = (cv::Mat_<double>(3,1) << cam0_data[3],cam0_data[4],cam0_data[5]);
 
-            cv::Mat_<double> t_vec0 = (cv::Mat_<double>(3,1) << cam0_data[3],cam0_data[4],cam0_data[5]);
-            cv::Mat_<double> t_vec1 = (cv::Mat_<double>(3,1) << cam1_data[3],cam1_data[4],cam1_data[5]);
+            // Initialize camera parameters with the rotation and translation vector collected above
+            initCamParams(new_cam_pose_idx, rot_vec, trans_vec);
 
-            initCamParams(new_cam_pose_idx,r_vec0,t_vec0);
-            initCamParams(cam_idx,r_vec1,t_vec1);
-            r_vec0.copyTo(proj_mat0(cv::Rect(0,0,3,3)));
+            // Transform the rotation vector in the corresponding rotation matrix
+            cv::Rodrigues(rot_vec, rot_mat);
+            // Copy rotation matrix and translation vector into the first projection matrix
+            rot_mat.copyTo(proj_mat0(cv::Rect(0, 0, 3, 3)));
+            trans_vec.copyTo(proj_mat0(cv::Rect(3, 0, 1, 3)));
 
-            t_vec0.copyTo(proj_mat0(cv::Rect(3,0,1,3)));
+            // Do the same process for the second camera
+            rot_vec = (cv::Mat_<double>(3,1) << cam1_data[0],cam1_data[1],cam1_data[2]);
+            trans_vec = (cv::Mat_<double>(3,1) << cam1_data[3],cam1_data[4],cam1_data[5]);
+            initCamParams(cam_idx, rot_vec, trans_vec);
 
-            r_vec1.copyTo(proj_mat1(cv::Rect(0,0,3,3)));
-            t_vec1.copyTo(proj_mat1(cv::Rect(3,0,1,3)));
+            cv::Rodrigues(rot_vec, rot_mat);
+            rot_mat.copyTo(proj_mat1(cv::Rect(0, 0, 3, 3)));
+            trans_vec.copyTo(proj_mat1(cv::Rect(3, 0, 1, 3)));
 
+            // Collect observations of point at pt_idx from the first camera
+            if(cam_observation[new_cam_pose_idx].find(pt_idx) != cam_observation[new_cam_pose_idx].end()) {
+                int obs_id = cam_observation[new_cam_pose_idx][pt_idx];
+                points0.emplace_back(observations_[obs_id], observations_[obs_id + 1]);
+            }
+
+            // Collect observations of point at pt_idx from the second camera
+            if(cam_observation[cam_idx].find(pt_idx) != cam_observation[cam_idx].end()) {
+                int obs_id = cam_observation[cam_idx][pt_idx];
+                points1.emplace_back(observations_[obs_id], observations_[obs_id + 1]);
+            }
+
+            // Triangulate points
             cv::triangulatePoints(proj_mat0,proj_mat1,points0,points1,hpoints4D);
 
-            if(checkCheiralityConstraint(cam_idx,pt_idx)){
+            // Check the cheirality constraints on both cameras for the 3D point at index pt_idx
+            if(checkCheiralityConstraint(cam_idx, pt_idx) && checkCheiralityConstraint(new_cam_pose_idx, pt_idx)){
                 n_new_pts++;
                 pts_optim_iter_[pt_idx] = 1;
                 double *pt = pointBlockPtr(pt_idx);
