@@ -756,7 +756,7 @@ void BasicSfM::solve()
 
             cv::triangulatePoints(proj_mat0,proj_mat1,points0,points1,hpoints4D);
 
-            if(checkCheiralityConstraint(cam_idx,pt_idx) && checkCheiralityConstraint(new_cam_pose_idx,pt_idx)){
+            if(checkCheiralityConstraint(cam_idx,pt_idx)){
                 n_new_pts++;
                 pts_optim_iter_[pt_idx] = 1;
                 double *pt = pointBlockPtr(pt_idx);
