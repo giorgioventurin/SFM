@@ -734,12 +734,25 @@ void BasicSfM::solve()
             points1.emplace_back(observations_[2*cam_observation[new_cam_pose_idx][co_iter.first]],
                                  observations_[2*cam_observation[new_cam_pose_idx][co_iter.first] + 1]);
 
-            init_r_mat.copyTo(proj_mat0(cv::Rect(0,0,3,3)));
-            init_t_vec.copyTo(proj_mat0(cv::Rect(3,0,1,3)));
+            cv::Mat r_vec0;
+            cv::Mat_<double> init_r_mat0 = (cv::Mat_<double>(3,1) << cam0_data[0],cam0_data[1],cam0_data[2]);
+            cv::Rodrigues(init_r_mat0,r_vec0);
 
-            initCamParams(cam_idx,init_r_mat,init_t_vec);
-            init_r_mat.copyTo(proj_mat1(cv::Rect(0,0,3,3)));
-            init_t_vec.copyTo(proj_mat1(cv::Rect(3,0,1,3)));
+            cv::Mat r_vec1;
+            cv::Mat_<double> init_r_mat1 = (cv::Mat_<double>(3,1) << cam1_data[0],cam1_data[1],cam1_data[2]);
+            cv::Rodrigues(init_r_mat1,r_vec1);
+
+            cv::Mat_<double> t_vec0 = (cv::Mat_<double>(3,1) << cam0_data[3],cam0_data[4],cam0_data[5]);
+            cv::Mat_<double> t_vec1 = (cv::Mat_<double>(3,1) << cam1_data[3],cam1_data[4],cam1_data[5]);
+
+            initCamParams(new_cam_pose_idx,r_vec0,t_vec0);
+            initCamParams(cam_idx,r_vec1,t_vec1);
+            r_vec0.copyTo(proj_mat0(cv::Rect(0,0,3,3)));
+
+            t_vec0.copyTo(proj_mat0(cv::Rect(3,0,1,3)));
+
+            r_vec1.copyTo(proj_mat1(cv::Rect(0,0,3,3)));
+            t_vec1.copyTo(proj_mat1(cv::Rect(3,0,1,3)));
 
             cv::triangulatePoints(proj_mat0,proj_mat1,points0,points1,hpoints4D);
 
