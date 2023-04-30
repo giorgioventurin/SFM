@@ -11,9 +11,8 @@ for i in range(len(match_pairs_paths)):
 
     print(npz.files)
     print(npz['keypoints0'].shape)
-    print(npz['keypoints0'].shape)
+    print(npz['keypoints1'].shape)
     print(npz['matches'].shape)
     print()
-    print(npz['matches'][:])
 
     # TODO: export keypoints from npz data

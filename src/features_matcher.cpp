@@ -38,10 +38,10 @@ void FeatureMatcher::extractFeatures()
     // Extract also the color (i.e., the cv::Vec3b information) of each feature, and store
     // it into feats_colors_[i] vector
     /////////////////////////////////////////////////////////////////////////////////////////
-    cv::Ptr<cv::ORB> orb = cv::ORB::create();
+    cv::Ptr<cv::SIFT> sift = cv::SIFT::create();
     cv::Mat mask = cv::Mat::ones(img.rows, img.cols, CV_8UC1);
 
-    orb->detectAndCompute(img, mask, features_[i], descriptors_[i]);
+    sift->detectAndCompute(img, mask, features_[i], descriptors_[i]);
 
     for(int j = 0; j < features_[i].size(); j++)
         feats_colors_[i].push_back(img.at<cv::Vec3b>((int)features_[i][j].pt.y,(int)features_[i][j].pt.x));
@@ -73,8 +73,22 @@ void FeatureMatcher::exhaustiveMatching()
       // setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
 
+      std::vector<cv::DMatch> raw_matches;
       cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
-      matcher->match(descriptors_[i], descriptors_[j], matches);
+      matcher->match(descriptors_[i], descriptors_[j], raw_matches);
+
+      double ratio = 3;
+      double min_distance = raw_matches[0].distance;
+
+      for(int k = 1; k < raw_matches.size(); k++) {
+        if (raw_matches[k].distance < min_distance)
+            min_distance = raw_matches[k].distance;
+      }
+
+      for(auto & raw_match : raw_matches) {
+        if(raw_match.distance < ratio * min_distance)
+            matches.push_back(raw_match);
+      }
 
       std::vector<cv::Point2d> p_i, p_j;
 
