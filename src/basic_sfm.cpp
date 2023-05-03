@@ -543,17 +543,16 @@ void BasicSfM::solve()
     int essential_inliers = cv::countNonZero(inlier_mask_E);
     int homography_inliers = cv::countNonZero(inlier_mask_H);
 
-    if(essential_inliers > homography_inliers)
+    if(essential_inliers > homography_inliers) {
         cv::recoverPose(E, points0, points1, intrinsics_matrix, init_r_mat, init_t_vec, inlier_mask_E);
-    else
-        continue;
+        // Sidewards motion test
+        double x_t = std::abs(init_t_vec.at<double>(0));
+        double z_t = std::abs(init_t_vec.at<double>(2));
 
-    // Sidewards motion test
-    double x_t = std::abs(init_t_vec.at<double>(0));
-    double z_t = std::abs(init_t_vec.at<double>(2));
+        if (x_t > z_t)
+            seed_found = true;
+    }
 
-    if(x_t > z_t)
-        seed_found = true;
     /////////////////////////////////////////////////////////////////////////////////////////
   }
 
@@ -771,13 +770,14 @@ void BasicSfM::solve()
             cv::triangulatePoints(proj_mat0,proj_mat1,points0,points1,hpoints4D);
 
             // Check the cheirality constraints on both cameras for the 3D point at index pt_idx
-            if(checkCheiralityConstraint(cam_idx, pt_idx) && checkCheiralityConstraint(new_cam_pose_idx, pt_idx)){
+            if(checkCheiralityConstraint(new_cam_pose_idx, pt_idx) &&
+               checkCheiralityConstraint(cam_idx, pt_idx)){
                 n_new_pts++;
                 pts_optim_iter_[pt_idx] = 1;
                 double *pt = pointBlockPtr(pt_idx);
-                pt[0]= hpoints4D.at<double>(0,n_new_pts)/hpoints4D.at<double>(3,n_new_pts);
-                pt[1]= hpoints4D.at<double>(1,n_new_pts)/hpoints4D.at<double>(3,n_new_pts);
-                pt[2]= hpoints4D.at<double>(2,n_new_pts)/hpoints4D.at<double>(3,n_new_pts);
+                pt[0]= hpoints4D.at<double>(0)/hpoints4D.at<double>(3);
+                pt[1]= hpoints4D.at<double>(1)/hpoints4D.at<double>(3);
+                pt[2]= hpoints4D.at<double>(2)/hpoints4D.at<double>(3);
             }
             
             /////////////////////////////////////////////////////////////////////////////////////////

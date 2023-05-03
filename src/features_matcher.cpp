@@ -77,7 +77,7 @@ void FeatureMatcher::exhaustiveMatching()
       cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
       matcher->match(descriptors_[i], descriptors_[j], raw_matches);
 
-      double ratio = 3;
+      double ratio = 5;
       double min_distance = raw_matches[0].distance;
 
       for(int k = 1; k < raw_matches.size(); k++) {
