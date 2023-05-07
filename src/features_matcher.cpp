@@ -6,6 +6,7 @@
 // Read from file
 #include <fstream>
 #include <string>
+#include <filesystem>
 
 FeatureMatcher::FeatureMatcher(cv::Mat intrinsics_matrix, cv::Mat dist_coeffs, double focal_scale)
 {
@@ -114,7 +115,7 @@ void FeatureMatcher::exhaustiveMatching()
           std::string line;
           bool matches_collected = false;
 
-          //open file stream
+          // open file stream
           std::ifstream file(filename);
 
           if (file.is_open()) {
@@ -125,7 +126,7 @@ void FeatureMatcher::exhaustiveMatching()
 
                   if (!line.empty()) { //if the line is non-empty then
 
-                      // Tokenize current line using space as delimiter
+                      // tokenize current line using space as delimiter
                       std::string delimiter = " ";
                       size_t pos = 0;
                       std::vector<std::string> tokens;
@@ -137,7 +138,7 @@ void FeatureMatcher::exhaustiveMatching()
                       }
                       tokens.push_back(line.substr(0, pos));
 
-                      // Load matches first if not already done
+                      // load matches first if not already done
                       if (!matches_collected) {
 
                           int imgIdx = std::stoi(tokens[0]);
@@ -149,7 +150,7 @@ void FeatureMatcher::exhaustiveMatching()
                           matches.push_back(match);
                       }
 
-                          // Else, we have to load keypoints
+                      // else, we have to load keypoints
                       else {
                           int k = std::stoi(tokens[0]);
                           double x = std::stof(tokens[1]);
@@ -168,7 +169,7 @@ void FeatureMatcher::exhaustiveMatching()
           }
       }
 
-      // Geometric verification
+      // geometric verification
       double threshold = 1.0;
       double prob = 0.999;
       cv::Mat essential_mask, homography_mask;
