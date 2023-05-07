@@ -42,6 +42,8 @@ for i in range(len(match_pairs_paths)):
         # MUST HAVE DIRECTORIES match_info_1, match_info_2 UNDER /datasets/superglue/ IN ORDER TO WORK!
         save_path = "../datasets/superglue/match_info_" + str(i+1) + "/"
         name = src + "_" + dst + ".txt"
+        if int(dst) < int(src):
+            name = dst + "_" + src + ".txt"
         name = os.path.join(save_path, name)
         file = open(name, "w")
         # file format:

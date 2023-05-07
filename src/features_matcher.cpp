@@ -113,69 +113,58 @@ void FeatureMatcher::exhaustiveMatching()
 
           std::string line;
           bool matches_collected = false;
-          bool done = false;
 
-          // This cycle is used in case of an incorrect filename
-          // some files have specular format (03_00.txt instead of 00_03.txt)
-          // if the filename set above is not correct, it is changed, see lines 171:172
-          while(!done) {
+          //open file stream
+          std::ifstream file(filename);
 
-              //open file stream
-              std::ifstream file(filename);
+          if (file.is_open()) {
+              // while file is okay
+              while (file) {
 
-              if (file.is_open()) {
-                  // while file is okay
-                  while (file) {
+                  std::getline(file, line); // read line
 
-                      std::getline(file, line); // read line
+                  if (!line.empty()) { //if the line is non-empty then
 
-                      if (!line.empty()) { //if the line is non-empty then
+                      // Tokenize current line using space as delimiter
+                      std::string delimiter = " ";
+                      size_t pos = 0;
+                      std::vector<std::string> tokens;
 
-                          // Tokenize current line using space as delimiter
-                          std::string delimiter = " ";
-                          size_t pos = 0;
-                          std::vector<std::string> tokens;
-
-                          // collect tokens from current line
-                          while ((pos = line.find(delimiter)) != std::string::npos) {
-                              tokens.push_back(line.substr(0, pos));
-                              line.erase(0, pos + delimiter.length());
-                          }
+                      // collect tokens from current line
+                      while ((pos = line.find(delimiter)) != std::string::npos) {
                           tokens.push_back(line.substr(0, pos));
+                          line.erase(0, pos + delimiter.length());
+                      }
+                      tokens.push_back(line.substr(0, pos));
 
-                          // Load matches first if not already done
-                          if (!matches_collected) {
+                      // Load matches first if not already done
+                      if (!matches_collected) {
 
-                              int imgIdx = std::stoi(tokens[0]);
-                              int trainIdx = std::stoi(tokens[1]);
-                              int queryIdx = std::stoi(tokens[2]);
-                              float distance = std::stof(tokens[3]);
+                          int imgIdx = std::stoi(tokens[0]);
+                          int trainIdx = std::stoi(tokens[1]);
+                          int queryIdx = std::stoi(tokens[2]);
+                          float distance = std::stof(tokens[3]);
 
-                              cv::DMatch match = cv::DMatch(queryIdx, trainIdx, imgIdx, distance);
-                              matches.push_back(match);
-                          }
+                          cv::DMatch match = cv::DMatch(queryIdx, trainIdx, imgIdx, distance);
+                          matches.push_back(match);
+                      }
 
                           // Else, we have to load keypoints
-                          else {
-                              int k = std::stoi(tokens[0]);
-                              double x = std::stof(tokens[1]);
-                              double y = std::stof(tokens[2]);
+                      else {
+                          int k = std::stoi(tokens[0]);
+                          double x = std::stof(tokens[1]);
+                          double y = std::stof(tokens[2]);
 
-                              if (k == 0)
-                                  p_i.emplace_back(x, y);
-                              else
-                                  p_j.emplace_back(x, y);
+                          if (k == 0)
+                              p_i.emplace_back(x, y);
+                          else
+                              p_j.emplace_back(x, y);
 
-                          }
                       }
-                      else // if the line is empty, we collected all matches, start with keypoints
-                          matches_collected = true;
                   }
-                  // if we collected all matches and keypoints, we are done
-                  done = true;
+                  else // if the line is empty, we collected all matches, start with keypoints
+                      matches_collected = true;
               }
-              else // if we did not collect matches and keypoints, try again with different filename format
-                  filename = path + second_img + "_" + first_img + ".txt";
           }
       }
 
