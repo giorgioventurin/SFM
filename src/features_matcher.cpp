@@ -3,6 +3,10 @@
 #include <iostream>
 #include <map>
 
+// Read from file
+#include <fstream>
+#include <string>
+
 FeatureMatcher::FeatureMatcher(cv::Mat intrinsics_matrix, cv::Mat dist_coeffs, double focal_scale)
 {
   intrinsics_matrix_ = intrinsics_matrix.clone();
@@ -73,30 +77,109 @@ void FeatureMatcher::exhaustiveMatching()
       // setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
 
-      std::vector<cv::DMatch> raw_matches;
-      cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
-      matcher->match(descriptors_[i], descriptors_[j], raw_matches);
-
-      double ratio = 5;
-      double min_distance = raw_matches[0].distance;
-
-      for(int k = 1; k < raw_matches.size(); k++) {
-        if (raw_matches[k].distance < min_distance)
-            min_distance = raw_matches[k].distance;
-      }
-
-      for(auto & raw_match : raw_matches) {
-        if(raw_match.distance < ratio * min_distance)
-            matches.push_back(raw_match);
-      }
-
+      bool deep_learning = true;
       std::vector<cv::Point2d> p_i, p_j;
 
-      for(auto & match : matches) {
-          p_i.push_back(features_[i][match.queryIdx].pt);
-          p_j.push_back(features_[j][match.trainIdx].pt);
+      if(!deep_learning) {
+          std::vector<cv::DMatch> raw_matches;
+          cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
+          matcher->match(descriptors_[i], descriptors_[j], raw_matches);
+
+          double ratio = 5.0;
+          double min_distance = raw_matches[0].distance;
+
+          for (int k = 1; k < raw_matches.size(); k++) {
+              if (raw_matches[k].distance < min_distance)
+                  min_distance = raw_matches[k].distance;
+          }
+
+          for (auto &raw_match: raw_matches) {
+              if (raw_match.distance < ratio * min_distance)
+                  matches.push_back(raw_match);
+          }
+
+          for (auto &match: matches) {
+              p_i.push_back(features_[i][match.queryIdx].pt);
+              p_j.push_back(features_[j][match.trainIdx].pt);
+          }
+      }
+      else {
+          std::string dataset = "1"; // set according to dataset considered
+          // collect filename of the file to open according to current image couple considered
+          std::string path = "../datasets/superglue/match_info_" + dataset + "/";
+          std::string first_img = (i < 10) ? ("0" + std::to_string(i)) : std::to_string(i);
+          std::string second_img = (j < 10) ? ("0" + std::to_string(j)) : std::to_string(j);
+          std::string filename = path + first_img + "_" + second_img + ".txt";
+
+          std::string line;
+          bool matches_collected = false;
+          bool done = false;
+
+          // This cycle is used in case of an incorrect filename
+          // some files have specular format (03_00.txt instead of 00_03.txt)
+          // if the filename set above is not correct, it is changed, see lines 171:172
+          while(!done) {
+
+              //open file stream
+              std::ifstream file(filename);
+
+              if (file.is_open()) {
+                  // while file is okay
+                  while (file) {
+
+                      std::getline(file, line); // read line
+
+                      if (!line.empty()) { //if the line is non-empty then
+
+                          // Tokenize current line using space as delimiter
+                          std::string delimiter = " ";
+                          size_t pos = 0;
+                          std::vector<std::string> tokens;
+
+                          // collect tokens from current line
+                          while ((pos = line.find(delimiter)) != std::string::npos) {
+                              tokens.push_back(line.substr(0, pos));
+                              line.erase(0, pos + delimiter.length());
+                          }
+                          tokens.push_back(line.substr(0, pos));
+
+                          // Load matches first if not already done
+                          if (!matches_collected) {
+
+                              int imgIdx = std::stoi(tokens[0]);
+                              int trainIdx = std::stoi(tokens[1]);
+                              int queryIdx = std::stoi(tokens[2]);
+                              float distance = std::stof(tokens[3]);
+
+                              cv::DMatch match = cv::DMatch(queryIdx, trainIdx, imgIdx, distance);
+                              matches.push_back(match);
+                          }
+
+                          // Else, we have to load keypoints
+                          else {
+                              int k = std::stoi(tokens[0]);
+                              double x = std::stof(tokens[1]);
+                              double y = std::stof(tokens[2]);
+
+                              if (k == 0)
+                                  p_i.emplace_back(x, y);
+                              else
+                                  p_j.emplace_back(x, y);
+
+                          }
+                      }
+                      else // if the line is empty, we collected all matches, start with keypoints
+                          matches_collected = true;
+                  }
+                  // if we collected all matches and keypoints, we are done
+                  done = true;
+              }
+              else // if we did not collect matches and keypoints, try again with different filename format
+                  filename = path + second_img + "_" + first_img + ".txt";
+          }
       }
 
+      // Geometric verification
       double threshold = 1.0;
       double prob = 0.999;
       cv::Mat essential_mask, homography_mask;

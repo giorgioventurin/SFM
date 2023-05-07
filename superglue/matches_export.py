@@ -29,8 +29,8 @@ for i in range(len(match_pairs_paths)):
                 distance = (1.0 / npz['match_confidence'][k]) * scale  # use confidence as distance measure + scaling
                 keypoint_src = npz['keypoints0'][query_idx]  # keypoint in first image corresponding to the k-th match
                 keypoint_dst = npz['keypoints1'][train_idx]  # keypoint in second image corresponding to the k-th match
-                points_i = points_i + str(keypoint_src[0]) + delimiter + str(keypoint_src[1]) + "\n"  # x y coord. for keypoint of first image
-                points_j = points_j + str(keypoint_dst[0]) + delimiter + str(keypoint_dst[1]) + "\n"  # x y coord. for keypoint of second image
+                points_i = points_i + "0" + delimiter + str(keypoint_src[0]) + delimiter + str(keypoint_src[1]) + "\n"  # x y coord. for keypoint of first image
+                points_j = points_j + "1" + delimiter + str(keypoint_dst[0]) + delimiter + str(keypoint_dst[1]) + "\n"  # x y coord. for keypoint of second image
 
                 # information to build a DMatch object in OpenCV: imgIdx trainIdx queryIdx distance
                 # imgIdx seems to be always 0
@@ -48,7 +48,6 @@ for i in range(len(match_pairs_paths)):
         file.write(matches)  # list of matches --> matches in features_matcher.cpp:120,124
         file.write("\n")  # blank line
         file.write(points_i)  # list of keypoints of first image that have a match --> p_i in features_matcher.cpp:104
-        file.write("\n")  # blank line
-        file.write(points_j)   # list of keypoints of second image that have a match --> p_j in features_matcher.cpp:104
+        file.write(points_j)  # list of keypoints of second image that have a match --> p_j in features_matcher.cpp:104
         file.close()
 
