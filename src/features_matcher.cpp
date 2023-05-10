@@ -77,10 +77,10 @@ void FeatureMatcher::exhaustiveMatching()
       // setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
 
-      bool deep_learning = false;
+      bool super_glue = true;
       std::vector<cv::Point2f> p_i, p_j;
 
-      if(!deep_learning) {
+      if(!super_glue) {
           std::vector<cv::DMatch> raw_matches;
           cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
           matcher->match(descriptors_[i], descriptors_[j], raw_matches);
@@ -98,14 +98,16 @@ void FeatureMatcher::exhaustiveMatching()
                   matches.push_back(raw_match);
           }
 
-          for (auto &match: matches) {
-              p_i.push_back(features_[i][match.queryIdx].pt);
-              p_j.push_back(features_[j][match.trainIdx].pt);
-          }
       }
-      else { // Load SuperGlue matches
+      else { // Load SuperGlue matches and keypoints
 
-          std::string dataset = "1"; // set according to dataset considered
+          // clear previous features and features colors extracted
+          features_[i].clear();
+          features_[j].clear();
+          feats_colors_[i].clear();
+          feats_colors_[j].clear();
+
+          std::string dataset = "2"; // set according to dataset considered
           // collect filename of the file to open according to current image couple considered
           std::string path = "../datasets/superglue/match_info_" + dataset + "/";
           std::string first_img = (i < 10) ? ("0" + std::to_string(i)) : std::to_string(i);
@@ -151,14 +153,15 @@ void FeatureMatcher::exhaustiveMatching()
 
                       // else, we have to load keypoints
                       else {
+                          int keypoint_size = 1;
                           int k = std::stoi(tokens[0]);
                           float x = std::stof(tokens[1]);
                           float y = std::stof(tokens[2]);
 
                           if (k == 0)
-                              p_i.emplace_back(x, y);
+                            features_[i].emplace_back(cv::Point2f(x,y),keypoint_size);
                           else
-                              p_j.emplace_back(x, y);
+                            features_[j].emplace_back(cv::Point2f(x,y),keypoint_size);
 
                       }
                   }
@@ -166,19 +169,6 @@ void FeatureMatcher::exhaustiveMatching()
                       matches_collected = true;
               }
           }
-
-          // clear previous features extracted and replace them with SuperGlue keypoints
-          features_[i].clear();
-          features_[j].clear();
-
-          for(const auto& point : p_i)
-              features_[i].emplace_back(point, 1);
-          for(const auto& point : p_j)
-              features_[j].emplace_back(point, 1);
-
-          // clear previous feature colors extracted and replace them
-          feats_colors_[i].clear();
-          feats_colors_[j].clear();
 
           // need to open images i,j to re-collect color information according to the new keypoints considered
           cv::Mat img_src = cv::imread("../datasets/images_" + dataset + "/" + first_img + ".jpg");
@@ -191,14 +181,22 @@ void FeatureMatcher::exhaustiveMatching()
 
 
           // visualize SuperGlue matches without geometric verification
-          cv::Mat result;
-          cv::drawMatches(img_src, features_[i], img_dst, features_[j], matches, result);
-          cv::imshow("SuperGlue matches", result);
-          cv::waitKey(0);
+          bool viz_sg = false;
+          if(viz_sg) {
+              cv::Mat result;
+              cv::drawMatches(img_src, features_[i], img_dst, features_[j], matches, result);
+              cv::imshow("SuperGlue matches", result);
+              cv::waitKey(3);
+          }
       }
 
+      // prepare points that corresponds to a match
+      for (auto &match: matches) {
+            p_i.push_back(features_[i][match.queryIdx].pt);
+            p_j.push_back(features_[j][match.trainIdx].pt);
+      }
 
-      // geometric verification
+      // perform geometric verification on points extracted above
       double threshold = 1.0;
       double prob = 0.999;
       cv::Mat essential_mask, homography_mask;
@@ -217,9 +215,6 @@ void FeatureMatcher::exhaustiveMatching()
       int min_inliers = 5;
       if(inlier_matches.size() > min_inliers)
           setMatches( i, j, inlier_matches);
-
-      //TODO: setMatches() causes an error due to wrong reading of "matches" vector when passed to the function
-      // "matches" vector in this scope is correct, in setMatches() scope match #16 explodes!!
       /////////////////////////////////////////////////////////////////////////////////////////
     }
   }
