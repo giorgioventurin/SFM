@@ -107,7 +107,7 @@ void FeatureMatcher::exhaustiveMatching()
           feats_colors_[i].clear();
           feats_colors_[j].clear();
 
-          std::string dataset = "2"; // set according to dataset considered
+          std::string dataset = "3"; // set according to dataset considered
           // collect filename of the file to open according to current image couple considered
           std::string path = "../datasets/superglue/match_info_" + dataset + "/";
           std::string first_img = (i < 10) ? ("0" + std::to_string(i)) : std::to_string(i);

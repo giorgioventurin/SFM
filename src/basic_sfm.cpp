@@ -536,7 +536,7 @@ void BasicSfM::solve()
     /////////////////////////////////////////////////////////////////////////////////////////
     double prob = 0.999;
     // double threshold = 0.001; // for SIFT features
-    double threshold = 2.0; // for SuperGlue features
+    double threshold = 0.001; // for SuperGlue features
 
     cv::Mat E = cv::findEssentialMat(points0, points1, intrinsics_matrix, cv::RANSAC, prob, threshold, inlier_mask_E);
     cv::Mat H = cv::findHomography(points0, points1, inlier_mask_H, cv::RANSAC, threshold);
