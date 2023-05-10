@@ -6,7 +6,6 @@
 // Read from file
 #include <fstream>
 #include <string>
-#include <filesystem>
 
 FeatureMatcher::FeatureMatcher(cv::Mat intrinsics_matrix, cv::Mat dist_coeffs, double focal_scale)
 {
@@ -78,8 +77,8 @@ void FeatureMatcher::exhaustiveMatching()
       // setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
 
-      bool deep_learning = true;
-      std::vector<cv::Point2d> p_i, p_j;
+      bool deep_learning = false;
+      std::vector<cv::Point2f> p_i, p_j;
 
       if(!deep_learning) {
           std::vector<cv::DMatch> raw_matches;
@@ -104,7 +103,8 @@ void FeatureMatcher::exhaustiveMatching()
               p_j.push_back(features_[j][match.trainIdx].pt);
           }
       }
-      else {
+      else { // Load SuperGlue matches
+
           std::string dataset = "1"; // set according to dataset considered
           // collect filename of the file to open according to current image couple considered
           std::string path = "../datasets/superglue/match_info_" + dataset + "/";
@@ -114,7 +114,6 @@ void FeatureMatcher::exhaustiveMatching()
 
           std::string line;
           bool matches_collected = false;
-
           // open file stream
           std::ifstream file(filename);
 
@@ -153,8 +152,8 @@ void FeatureMatcher::exhaustiveMatching()
                       // else, we have to load keypoints
                       else {
                           int k = std::stoi(tokens[0]);
-                          double x = std::stof(tokens[1]);
-                          double y = std::stof(tokens[2]);
+                          float x = std::stof(tokens[1]);
+                          float y = std::stof(tokens[2]);
 
                           if (k == 0)
                               p_i.emplace_back(x, y);
@@ -167,7 +166,37 @@ void FeatureMatcher::exhaustiveMatching()
                       matches_collected = true;
               }
           }
+
+          // clear previous features extracted and replace them with SuperGlue keypoints
+          features_[i].clear();
+          features_[j].clear();
+
+          for(const auto& point : p_i)
+              features_[i].emplace_back(point, 1);
+          for(const auto& point : p_j)
+              features_[j].emplace_back(point, 1);
+
+          // clear previous feature colors extracted and replace them
+          feats_colors_[i].clear();
+          feats_colors_[j].clear();
+
+          // need to open images i,j to re-collect color information according to the new keypoints considered
+          cv::Mat img_src = cv::imread("../datasets/images_" + dataset + "/" + first_img + ".jpg");
+          cv::Mat img_dst = cv::imread("../datasets/images_" + dataset + "/" + second_img + ".jpg");
+
+          for(int z = 0; z < features_[i].size(); z++)
+              feats_colors_[i].push_back(img_src.at<cv::Vec3b>((int)features_[i][z].pt.y,(int)features_[i][z].pt.x));
+          for(int z = 0; z < features_[j].size(); z++)
+              feats_colors_[j].push_back(img_dst.at<cv::Vec3b>((int)features_[j][z].pt.y,(int)features_[j][z].pt.x));
+
+
+          // visualize SuperGlue matches without geometric verification
+          cv::Mat result;
+          cv::drawMatches(img_src, features_[i], img_dst, features_[j], matches, result);
+          cv::imshow("SuperGlue matches", result);
+          cv::waitKey(0);
       }
+
 
       // geometric verification
       double threshold = 1.0;
@@ -188,6 +217,9 @@ void FeatureMatcher::exhaustiveMatching()
       int min_inliers = 5;
       if(inlier_matches.size() > min_inliers)
           setMatches( i, j, inlier_matches);
+
+      //TODO: setMatches() causes an error due to wrong reading of "matches" vector when passed to the function
+      // "matches" vector in this scope is correct, in setMatches() scope match #16 explodes!!
       /////////////////////////////////////////////////////////////////////////////////////////
     }
   }
