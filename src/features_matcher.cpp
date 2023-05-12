@@ -77,7 +77,7 @@ void FeatureMatcher::exhaustiveMatching()
       // setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
 
-      bool super_glue = true;
+      bool super_glue = false;
       std::vector<cv::Point2f> p_i, p_j;
 
       if(!super_glue) {
