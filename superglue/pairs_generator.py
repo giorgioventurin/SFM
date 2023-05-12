@@ -3,7 +3,7 @@ from os import path
 from PIL import Image
 
 dataset_path = 'datasets'
-pairs_paths = ['images_1', 'images_2']
+pairs_paths = ['images_1', 'images_2', 'images_3']
 output_path = 'datasets/'
 
 for i in range(len(pairs_paths)):
