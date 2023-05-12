@@ -77,7 +77,7 @@ void FeatureMatcher::exhaustiveMatching()
       // setMatches( i, j, inlier_matches);
       /////////////////////////////////////////////////////////////////////////////////////////
 
-      bool super_glue = true;
+      bool super_glue = false;
       std::vector<cv::Point2f> p_i, p_j;
 
       if(!super_glue) {
@@ -107,7 +107,7 @@ void FeatureMatcher::exhaustiveMatching()
           feats_colors_[i].clear();
           feats_colors_[j].clear();
 
-          std::string dataset = "2"; // set according to dataset considered
+          std::string dataset = "1"; // set according to dataset considered
           // collect filename of the file to open according to current image couple considered
           std::string path = "../datasets/superglue/match_info_" + dataset + "/";
           std::string first_img = (i < 10) ? ("0" + std::to_string(i)) : std::to_string(i);
@@ -186,7 +186,7 @@ void FeatureMatcher::exhaustiveMatching()
               cv::Mat result;
               cv::drawMatches(img_src, features_[i], img_dst, features_[j], matches, result);
               cv::imshow("SuperGlue matches", result);
-              cv::waitKey(3);
+              cv::waitKey(400);
           }
       }
 

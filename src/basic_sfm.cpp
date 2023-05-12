@@ -535,8 +535,8 @@ void BasicSfM::solve()
     // should be replaced with the criteria described above
     /////////////////////////////////////////////////////////////////////////////////////////
     double prob = 0.999;
-    // double threshold = 0.001; // for SIFT features
-    double threshold = 2.0; // for SuperGlue features
+    //double threshold = 0.001; // for SIFT features
+    double threshold = 2.0; // for SuperGlue features --> more reliable matches, dataset 1: 2.0 dataset 2: 2.5
 
     cv::Mat E = cv::findEssentialMat(points0, points1, intrinsics_matrix, cv::RANSAC, prob, threshold, inlier_mask_E);
     cv::Mat H = cv::findHomography(points0, points1, inlier_mask_H, cv::RANSAC, threshold);
@@ -780,7 +780,6 @@ void BasicSfM::solve()
                 pt[1]= hpoints4D.at<double>(1)/hpoints4D.at<double>(3);
                 pt[2]= hpoints4D.at<double>(2)/hpoints4D.at<double>(3);
             }
-            
             /////////////////////////////////////////////////////////////////////////////////////////
           }
         }
